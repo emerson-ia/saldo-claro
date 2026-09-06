@@ -5,12 +5,12 @@ import { useColorScheme } from "react-native";
 export type ThemePreference = "light" | "dark" | "system";
 
 const light = {
-  background: "#F6F8F7", surface: "#FFFFFF", elevated: "#EDF3F0", text: "#16332F", muted: "#687A76", border: "#DFE7E4",
-  primary: "#0B6B62", primaryDark: "#064E47", positive: "#159A6B", warning: "#D98B18", negative: "#D94343", accent: "#E6F2EE",
+  background: "#F7F9F5", surface: "#FFFFFF", elevated: "#EEF5E9", text: "#1B2A21", muted: "#647166", border: "#DCE7DC",
+  primary: "#00843D", primaryDark: "#006B33", positive: "#00843D", warning: "#C98212", negative: "#C74646", accent: "#E8F4D8",
 };
 const dark = {
-  background: "#102522", surface: "#18312D", elevated: "#21433D", text: "#E8F2EF", muted: "#A8BAB4", border: "#2A4B44",
-  primary: "#66C7B5", primaryDark: "#0B6B62", positive: "#54C796", warning: "#F0B64B", negative: "#F07878", accent: "#204C43",
+  background: "#102418", surface: "#183521", elevated: "#234A2C", text: "#EDF7E9", muted: "#A8BCA8", border: "#2C5138",
+  primary: "#5ABF64", primaryDark: "#00843D", positive: "#5ABF64", warning: "#F0BB56", negative: "#F27D7D", accent: "#284B2E",
 };
 
 type Palette = typeof light;

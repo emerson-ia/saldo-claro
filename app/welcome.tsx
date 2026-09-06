@@ -16,7 +16,7 @@ export default function WelcomeScreen() {
   const startFresh = () => setStep("account");
   const finishFresh = () => {
     completeWelcome("fresh");
-    addAccount({ name: accountName.trim() || "Minha conta principal", type: "Conta corrente", institution: "", color: "#0B6B62", initialBalance: Number(balance.replace(".", "").replace(",", ".")) || 0, includeInTotal: true });
+    addAccount({ name: accountName.trim() || "Minha conta principal", type: "Conta corrente", institution: "", color: "#00843D", initialBalance: Number(balance.replace(".", "").replace(",", ".")) || 0, includeInTotal: true });
     router.replace("/");
   };
 
