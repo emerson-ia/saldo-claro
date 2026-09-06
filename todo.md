@@ -30,3 +30,6 @@ Alteração solicitada após a primeira entrega: substituir a paleta verde-petr�
 - [x] Avaliar se o ícone atual deve ser regenerado com a nova direção cromática.
 
 **Escopo cromático proposto:** verde institucional profundo para ações primárias, verde claro para superfícies e estados positivos, branco para cartões principais, grafite para texto e âmbar/vermelho mantidos apenas para alertas semânticos.
+- [x] Diagnosticar porque o Saldo Claro não abre no Expo Go.
+- [x] Corrigir Metro, QR code ou configuração de rede conforme o diagnóstico.
+- [x] Validar o carregamento inicial no fluxo de desenvolvimento e atualizar as instruções para o dispositivo.

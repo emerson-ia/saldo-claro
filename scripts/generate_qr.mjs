@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import QRCode from "qrcode";
 
-const url = process.argv[2];
+const url = process.argv[2] ?? process.env.EXPO_APP_QR_URL;
 
 if (!url) {
   console.error('Usage: node scripts/generate_qr.mjs "exps://..."');
+  console.error('Or set EXPO_APP_QR_URL in the environment.');
   process.exit(1);
 }
 
