@@ -8,6 +8,7 @@ No Supabase, cadastre apenas em **Edge Functions → Secrets**:
 
 ```text
 MP_TEST_ACCESS_TOKEN=<token de teste do Mercado Pago>
+MP_TEST_PAYER_EMAIL=<e-mail do comprador de teste do Mercado Pago>
 MP_TEST_MODE=true
 APP_PUBLIC_URL=https://saldo-claro.pages.dev
 ```

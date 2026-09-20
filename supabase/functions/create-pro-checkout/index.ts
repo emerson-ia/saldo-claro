@@ -25,9 +25,10 @@ Deno.serve(async (request) => {
   if (Deno.env.get("MP_TEST_MODE") !== "true") return json({ error: "Cobranças ainda não foram liberadas. Ambiente de teste não configurado." }, 503);
 
   const accessToken = Deno.env.get("MP_TEST_ACCESS_TOKEN");
+  const testPayerEmail = Deno.env.get("MP_TEST_PAYER_EMAIL");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  if (!accessToken || !supabaseUrl || !supabaseAnonKey) return json({ error: "Configuração de cobrança incompleta." }, 503);
+  if (!accessToken || !testPayerEmail || !supabaseUrl || !supabaseAnonKey) return json({ error: "Configuração de cobrança incompleta." }, 503);
 
   const authorization = request.headers.get("Authorization");
   if (!authorization?.startsWith("Bearer ")) return json({ error: "Faça login novamente para continuar." }, 401);
@@ -53,7 +54,8 @@ Deno.serve(async (request) => {
     body: JSON.stringify({
       reason: `Saldo Claro PRO ${plan.label}`,
       external_reference: user.id,
-      payer_email: user.email,
+    // Mercado Pago requires the payer and collector to both be test users during homologation.
+    payer_email: testPayerEmail,
       auto_recurring: { frequency: plan.frequency, frequency_type: "months", transaction_amount: plan.amount, currency_id: "BRL" },
       back_url: `${appUrl}/subscription?checkout=return`,
       notification_url: webhookUrl,
