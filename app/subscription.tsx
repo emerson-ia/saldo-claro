@@ -1,34 +1,31 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppHeader, Surface } from '@/components/finance-ui';
 import { ScreenContainer } from '@/components/screen-container';
-import { getApiBaseUrl } from '@/constants/oauth';
+import { useAuth } from '@/lib/auth-provider';
 import { useFinanceTheme } from '@/lib/finance-theme';
 import { getSupabase } from '@/lib/supabase';
 
-const freeFeatures = ['Contas, cartões e lançamentos', 'Categorias, metas e planejamento', 'Relatórios e organização financeira'];
-const proFeatures = ['Automações para reduzir trabalho manual', 'Integrações com bancos e instituições financeiras', 'Conciliação e recursos avançados'];
+const freeFeatures = ['Contas, cartões e lançamentos', 'Categorias e planejamento essencial', 'Relatórios e organização financeira'];
+const proFeatures = ['Recorrências', 'Parcelamentos e fatura completa', 'Notificações de vencimento', 'Relatórios avançados', 'Exportação em PDF', 'Múltiplas metas'];
+const billingTestMode = process.env.EXPO_PUBLIC_BILLING_TEST_MODE !== 'false';
 
 export default function SubscriptionScreen() {
   const { colors } = useFinanceTheme();
+  const { configured } = useAuth();
   const [period, setPeriod] = useState<'monthly' | 'yearly'>('yearly');
-  const [billing, setBilling] = useState({ configured: false, upgradeEnabled: false });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  useEffect(() => { fetch(`${getApiBaseUrl()}/api/billing/status`).then((response) => response.ok ? response.json() : null).then((data) => { if (data) setBilling(data); }).catch(() => undefined); }, []);
   const startCheckout = async () => {
-    if (!billing.upgradeEnabled || !billing.configured) return;
+    if (!configured) return;
     setLoading(true); setMessage('');
     try {
-      const { data } = await getSupabase().auth.getSession();
-      if (!data.session?.access_token) throw new Error('Entre novamente para continuar.');
-      const response = await fetch(`${getApiBaseUrl()}/api/billing/mercado-pago/checkout`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` }, body: JSON.stringify({ period }) });
-      const body = await response.json();
-      if (!response.ok || !body.checkoutUrl) throw new Error(body.error ?? 'Não foi possível abrir o checkout.');
-      await WebBrowser.openBrowserAsync(body.checkoutUrl);
+      const { data, error } = await getSupabase().functions.invoke('create-pro-checkout', { body: { period } });
+      if (error || !data?.checkoutUrl) throw new Error(data?.error ?? error?.message ?? 'Não foi possível abrir o checkout.');
+      await WebBrowser.openBrowserAsync(data.checkoutUrl);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Não foi possível iniciar o checkout.'); }
     finally { setLoading(false); }
   };
@@ -42,14 +39,14 @@ export default function SubscriptionScreen() {
     <Text style={[styles.section, { color: colors.muted }]}>O QUE JÁ ESTÁ INCLUSO</Text>
     <Surface style={styles.list}>{freeFeatures.map((feature) => <Feature key={feature} text={feature} colors={colors} />)}</Surface>
 
-    <Text style={[styles.section, { color: colors.muted }]}>PRÓXIMA VERSÃO</Text>
+    <Text style={[styles.section, { color: colors.muted }]}>{billingTestMode ? 'CHECKOUT EM TESTE' : 'SALDO CLARO PRO'}</Text>
     <Surface style={[styles.proCard, { borderColor: colors.border }]}>
-      <View style={styles.proTop}><View style={[styles.proIcon, { backgroundColor: colors.accent }]}><MaterialIcons name="auto-awesome" size={20} color={colors.primary} /></View><View style={styles.proTitleWrap}><Text style={[styles.proTitle, { color: colors.text }]}>PRO</Text><Text style={[styles.proCaption, { color: colors.muted }]}>Futuramente</Text></View></View>
-      <Text style={[styles.proDescription, { color: colors.text }]}>Versão paga PRO futuramente com automações e integrações com bancos e instituições financeiras.</Text>
+      <View style={styles.proTop}><View style={[styles.proIcon, { backgroundColor: colors.accent }]}><MaterialIcons name="auto-awesome" size={20} color={colors.primary} /></View><View style={styles.proTitleWrap}><Text style={[styles.proTitle, { color: colors.text }]}>PRO</Text><Text style={[styles.proCaption, { color: colors.muted }]}>{billingTestMode ? 'Validação interna' : 'Mais controle, menos correria'}</Text></View></View>
+      <Text style={[styles.proDescription, { color: colors.text }]}>{billingTestMode ? 'Este checkout está em teste. Nenhuma cobrança real será criada nesta etapa.' : 'Recursos para quem quer antecipar contas, organizar faturas e aprofundar sua visão financeira.'}</Text>
       <View style={styles.proList}>{proFeatures.map((feature) => <Feature key={feature} text={feature} colors={colors} muted />)}</View>
-      <View style={styles.periodRow}><PeriodOption title="Mensal" price="R$ 9,90/mês" active={period === 'monthly'} onPress={() => setPeriod('monthly')} colors={colors} /><PeriodOption title="Anual" price="R$ 99,90/ano" detail="2 meses grátis" active={period === 'yearly'} onPress={() => setPeriod('yearly')} colors={colors} /></View>
-      <Pressable disabled={!billing.upgradeEnabled || !billing.configured || loading} onPress={startCheckout} style={({ pressed }) => [styles.upgrade, { backgroundColor: colors.primary, opacity: pressed || !billing.upgradeEnabled || !billing.configured || loading ? .48 : 1 }]}>{loading ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={[styles.upgradeText, { color: colors.onPrimary }]}>Assinar PRO</Text>}</Pressable>
-      <View style={[styles.notice, { backgroundColor: colors.elevated }]}><MaterialIcons name={billing.upgradeEnabled && billing.configured ? 'lock-outline' : 'pause-circle-outline'} size={18} color={colors.primary} /><Text style={[styles.noticeText, { color: colors.muted }]}>{billing.upgradeEnabled && billing.configured ? 'Pagamento seguro pelo Mercado Pago. Você verá as condições finais antes de confirmar.' : 'As assinaturas PRO estão temporariamente indisponíveis. A versão Gratuita continua completa para sempre.'}</Text></View>
+      <View style={styles.periodRow}><PeriodOption title="Mensal" price="R$ 5,60/mês" active={period === 'monthly'} onPress={() => setPeriod('monthly')} colors={colors} /><PeriodOption title="Anual" price="R$ 49,90/ano" detail="Economize 26%" active={period === 'yearly'} onPress={() => setPeriod('yearly')} colors={colors} /></View>
+      <Pressable disabled={!configured || loading} onPress={startCheckout} style={({ pressed }) => [styles.upgrade, { backgroundColor: colors.primary, opacity: pressed || !configured || loading ? .48 : 1 }]}>{loading ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={[styles.upgradeText, { color: colors.onPrimary }]}>{billingTestMode ? 'Testar checkout PRO' : 'Assinar PRO'}</Text>}</Pressable>
+      <View style={[styles.notice, { backgroundColor: colors.elevated }]}><MaterialIcons name={configured ? 'lock-outline' : 'pause-circle-outline'} size={18} color={colors.primary} /><Text style={[styles.noticeText, { color: colors.muted }]}>{configured ? billingTestMode ? 'Ambiente de teste. Use somente dados de teste do Mercado Pago.' : 'Pagamento seguro pelo Mercado Pago. Você verá as condições finais antes de confirmar.' : 'Entre na sua conta para continuar.'}</Text></View>
       {message ? <Text style={[styles.error, { color: colors.negative }]}>{message}</Text> : null}
     </Surface>
     <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, { borderColor: colors.border, opacity: pressed ? .65 : 1 }]}><Text style={[styles.backText, { color: colors.text }]}>Continuar com a versão Gratuita</Text></Pressable>

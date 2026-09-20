@@ -5,8 +5,8 @@ import { billingWebhookEvents, subscriptions } from "../drizzle/schema";
 import { getDb } from "./db";
 
 const MERCADO_PAGO_API = "https://api.mercadopago.com";
-export const PRO_MONTHLY_PRICE = 9.9;
-export const PRO_YEARLY_PRICE = 99.9;
+export const PRO_MONTHLY_PRICE = 5.6;
+export const PRO_YEARLY_PRICE = 49.9;
 
 type BillingPeriod = "monthly" | "yearly";
 type SupabaseUser = { id: string; email?: string | null };
@@ -19,7 +19,8 @@ function required(name: string) {
 }
 
 export function isBillingConfigured() {
-  return Boolean(process.env.MERCADO_PAGO_ACCESS_TOKEN && (process.env.SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL) && (process.env.SUPABASE_ANON_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) && process.env.APP_PUBLIC_URL);
+  // The legacy server flow stays disabled until a deliberate live-launch decision.
+  return process.env.MERCADO_PAGO_ENABLE_LIVE === "true" && Boolean(process.env.MERCADO_PAGO_ACCESS_TOKEN && (process.env.SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL) && (process.env.SUPABASE_ANON_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) && process.env.APP_PUBLIC_URL);
 }
 
 export async function getSupabaseUser(req: Request): Promise<SupabaseUser> {
@@ -42,7 +43,7 @@ export async function createProCheckout(user: SupabaseUser, period: BillingPerio
   const frequency = period === "monthly" ? 1 : 12;
   const appUrl = required("APP_PUBLIC_URL").replace(/\/$/, "");
   const preference = await mercadoPago("/preapproval", { method: "POST", body: JSON.stringify({
-    reason: `Finanças em Dia PRO ${period === "monthly" ? "Mensal" : "Anual"}`,
+    reason: `Saldo Claro PRO ${period === "monthly" ? "Mensal" : "Anual"}`,
     external_reference: user.id,
     payer_email: user.email ?? undefined,
     auto_recurring: { frequency, frequency_type: "months", transaction_amount: price, currency_id: "BRL" },

@@ -21,7 +21,7 @@ export default function TabLayout() {
       <Tabs.Screen name="index" options={{ title: "Início", tabBarIcon: ({ color, size }) => <MaterialIcons name="home-filled" color={color} size={size} /> }} />
       <Tabs.Screen name="transactions" options={{ title: "Lançamentos", tabBarIcon: ({ color, size }) => <MaterialIcons name="receipt-long" color={color} size={size} /> }} />
       <Tabs.Screen name="add" options={{ title: "Adicionar", tabBarIcon: ({ color }) => <View style={[styles.addIcon, { backgroundColor: colors.primary }]}><MaterialIcons name="add" color="#FFFFFF" size={25} /></View> }} />
-      <Tabs.Screen name="planning" options={{ title: "Planejamento", tabBarIcon: ({ color, size }) => <MaterialIcons name="donut-large" color={color} size={size} /> }} />
+      <Tabs.Screen name="planning" options={{ title: "Plano", tabBarIcon: ({ color, size }) => <MaterialIcons name="donut-large" color={color} size={size} /> }} />
       <Tabs.Screen name="more" options={{ title: "Mais", tabBarIcon: ({ color, size }) => <MaterialIcons name="more-horiz" color={color} size={size} /> }} />
     </Tabs>
   );
