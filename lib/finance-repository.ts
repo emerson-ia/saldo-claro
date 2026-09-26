@@ -110,11 +110,11 @@ export class FinanceRepository {
     if (failed?.error) return failure(failed.error);
     try {
       const preference = preferences.data as Row | null;
-      return { ok: true, data: { accounts: (accounts.data as Row[]).map(accountFromRow), categories: (categories.data as Row[]).map(categoryFromRow), cards: (cards.data as Row[]).map(cardFromRow), transactions: (transactions.data as Row[]).map(transactionFromRow), budgets: (budgets.data as Row[]).map(budgetFromRow), goals: (goals.data as Row[]).map(goalFromRow), demoMode: Boolean(preference?.demo_mode), hasSeenWelcome: Boolean(preference?.has_seen_welcome) } };
+      return { ok: true, data: { accounts: (accounts.data as Row[]).map(accountFromRow), categories: (categories.data as Row[]).map(categoryFromRow), cards: (cards.data as Row[]).map(cardFromRow), transactions: (transactions.data as Row[]).map(transactionFromRow), budgets: (budgets.data as Row[]).map(budgetFromRow), goals: (goals.data as Row[]).map(goalFromRow), safetyBuffer: preference?.safety_buffer_cents == null ? 0 : fromCents(preference.safety_buffer_cents as number | string), demoMode: Boolean(preference?.demo_mode), hasSeenWelcome: Boolean(preference?.has_seen_welcome) } };
     } catch (error) { return { ok: false, issue: "invalid_data", error: error instanceof Error ? error : new Error("Dados financeiros inválidos.") }; }
   }
 
-  async savePreferences(userId: string, data: Pick<FinanceData, "demoMode" | "hasSeenWelcome">) { return rows(await this.supabase.from("finance_preferences").upsert({ user_id: userId, demo_mode: data.demoMode, has_seen_welcome: data.hasSeenWelcome }, { onConflict: "user_id" }).select("user_id")); }
+  async savePreferences(userId: string, data: Pick<FinanceData, "demoMode" | "hasSeenWelcome" | "safetyBuffer">) { return rows(await this.supabase.from("finance_preferences").upsert({ user_id: userId, demo_mode: data.demoMode, has_seen_welcome: data.hasSeenWelcome, safety_buffer_cents: toCents(data.safetyBuffer) }, { onConflict: "user_id" }).select("user_id")); }
   async addAccount(userId: string, account: Account) { return rows(await this.supabase.from("finance_accounts").insert({ id: account.id, ...accountToRow(account, userId) }).select("*")); }
   async updateAccount(userId: string, id: string, account: Omit<Account, "id">) { return rows(await this.supabase.from("finance_accounts").update(accountToRow(account, userId)).eq("id", id).eq("user_id", userId).select("*")); }
   async deleteAccount(userId: string, id: string) { return rows(await this.supabase.from("finance_accounts").update({ deleted_at: new Date().toISOString() }).eq("id", id).eq("user_id", userId).select("id")); }

@@ -38,6 +38,7 @@ type FinanceContextValue = FinanceData & {
   updateCategory: (id: string, category: Omit<Category, "id">) => void;
   setBudget: (categoryId: string, amount: number, month: string) => void;
   addGoal: (goal: Omit<FinancialGoal, "id">) => void;
+  setSafetyBuffer: (value: number) => void;
 };
 const FinanceContext = createContext<FinanceContextValue | null>(null);
 
@@ -156,8 +157,16 @@ export function FinanceProvider({ children }: PropsWithChildren) {
     setData((previous) => ({ ...previous, goals: [...previous.goals, item] }));
     if (repository && user) sync(() => repository.addGoal(user.id, item));
   }, [repository, sync, user]);
+  const setSafetyBuffer = useCallback((value: number) => {
+    const safetyBuffer = Math.max(0, value);
+    setData((previous) => {
+      const next = { ...previous, safetyBuffer };
+      if (repository && user) sync(() => repository.savePreferences(user.id, next));
+      return next;
+    });
+  }, [repository, sync, user]);
 
-  const value = useMemo(() => ({ ...data, ready, privacyMode, setPrivacyMode, completeWelcome, addTransaction, updateTransactionStatus, deleteTransaction, addAccount, updateAccount, deleteAccount, addCard, updateCard, deleteCard, addCategory, updateCategory, setBudget, addGoal }), [data, ready, privacyMode, completeWelcome, addTransaction, updateTransactionStatus, deleteTransaction, addAccount, updateAccount, deleteAccount, addCard, updateCard, deleteCard, addCategory, updateCategory, setBudget, addGoal]);
+  const value = useMemo(() => ({ ...data, ready, privacyMode, setPrivacyMode, completeWelcome, addTransaction, updateTransactionStatus, deleteTransaction, addAccount, updateAccount, deleteAccount, addCard, updateCard, deleteCard, addCategory, updateCategory, setBudget, addGoal, setSafetyBuffer }), [data, ready, privacyMode, completeWelcome, addTransaction, updateTransactionStatus, deleteTransaction, addAccount, updateAccount, deleteAccount, addCard, updateCard, deleteCard, addCategory, updateCategory, setBudget, addGoal, setSafetyBuffer]);
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
 }
 export function useFinance() { const context = useContext(FinanceContext); if (!context) throw new Error("useFinance deve ser usado dentro de FinanceProvider."); return context; }

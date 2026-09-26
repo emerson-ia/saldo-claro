@@ -4,6 +4,7 @@ import {
   createDemoData,
   currentMonth,
   getMonthlySummary,
+  getSafeToSpendSummary,
   isInMonth,
   shiftMonth,
   type Account,
@@ -16,7 +17,7 @@ const accountB: Account = { id: "b", name: "Conta B", type: "Poupança", color: 
 const month = currentMonth();
 
 function makeData(transactions: Transaction[]): FinanceData {
-  return { accounts: [accountA, accountB], categories: [], cards: [], transactions, budgets: [], goals: [], demoMode: false, hasSeenWelcome: true };
+  return { accounts: [accountA, accountB], categories: [], cards: [], transactions, budgets: [], goals: [], safetyBuffer: 0, demoMode: false, hasSeenWelcome: true };
 }
 
 describe("regras de cálculo financeiro", () => {
@@ -52,6 +53,20 @@ describe("regras de cálculo financeiro", () => {
     const summary = getMonthlySummary(data, month);
     expect(calculateAccountBalance(accountA, data.transactions)).toBe(1000);
     expect(summary.expenses).toBe(250);
+  });
+
+  it("responde o quanto é seguro gastar, sem contar contas, cartão, metas e margem como livres", () => {
+    const commitments: Transaction[] = [
+      { id: "t4", kind: "expense", description: "Internet", amount: 120, date: `${month}-20`, dueDate: `${month}-20`, accountId: "a", status: "pending", createdAt: `${month}-01` },
+      { id: "t5", kind: "card", description: "Mercado", amount: 180, date: `${month}-20`, cardId: "card-1", status: "paid", createdAt: `${month}-01` },
+    ];
+    const data = { ...makeData(commitments), goals: [{ id: "g1", name: "Viagem", target: 2000, saved: 250, targetDate: "", color: "#0B6B62" }], safetyBuffer: 100 };
+    const summary = getSafeToSpendSummary(data, `${month}-01`);
+    expect(summary.accountBalance).toBe(1000);
+    expect(summary.scheduledExpenses).toBe(120);
+    expect(summary.cardCommitments).toBe(180);
+    expect(summary.goalReserve).toBe(250);
+    expect(summary.available).toBe(350);
   });
 
   it("entrega dados demonstrativos separados com contas, cartões e planejamento", () => {

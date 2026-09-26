@@ -64,6 +64,8 @@ export type FinanceData = {
   transactions: Transaction[];
   budgets: Budget[];
   goals: FinancialGoal[];
+  /** Valor que a pessoa decidiu não comprometer nas despesas do dia a dia. */
+  safetyBuffer: number;
   demoMode: boolean;
   hasSeenWelcome: boolean;
 };
@@ -158,6 +160,73 @@ export function getMonthlySummary(data: FinanceData, month: string) {
   };
 }
 
+export type SafeToSpendSummary = {
+  available: number;
+  rawAvailable: number;
+  shortfall: number;
+  dailyAllowance: number;
+  daysUntilIncome: number;
+  nextIncomeDate: string;
+  accountBalance: number;
+  scheduledExpenses: number;
+  cardCommitments: number;
+  goalReserve: number;
+  safetyBuffer: number;
+};
+
+const sumAmounts = (items: Transaction[]) => items.reduce((sum, item) => sum + item.amount, 0);
+const dateAtNoon = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`);
+const daysBetweenInclusive = (from: string, to: string) => Math.max(1, Math.round((dateAtNoon(to).getTime() - dateAtNoon(from).getTime()) / 86_400_000) + 1);
+const endOfMonth = (date: string) => {
+  const value = dateAtNoon(date);
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(new Date(value.getFullYear(), value.getMonth() + 1, 0).getDate()).padStart(2, "0")}`;
+};
+
+/**
+ * The product's core answer. It deliberately only uses commitments already
+ * registered by the user. Recurring generation and bank reconciliation join
+ * this calculation in later iterations, rather than inventing future values.
+ */
+export function getSafeToSpendSummary(data: FinanceData, today = todayIso()): SafeToSpendSummary {
+  const nextIncome = data.transactions
+    .filter((item) => item.kind === "income" && item.status !== "cancelled" && item.status !== "received" && item.date > today)
+    .sort((a, b) => a.date.localeCompare(b.date))[0];
+  const nextIncomeDate = nextIncome?.date ?? endOfMonth(today);
+  const inWindow = (item: Transaction) => {
+    const commitmentDate = item.dueDate ?? item.date;
+    return commitmentDate >= today && commitmentDate <= nextIncomeDate;
+  };
+  const scheduledExpenses = sumAmounts(data.transactions.filter((item) =>
+    item.kind === "expense" && !transactionIsRealized(item) && item.status !== "cancelled" && inWindow(item),
+  ));
+  // Card purchases do not change account balance when they happen. They remain
+  // a commitment until a dedicated invoice/payment model replaces this rule.
+  const cardCommitments = sumAmounts(data.transactions.filter((item) =>
+    item.kind === "card" && item.status !== "cancelled" && inWindow(item),
+  ));
+  const accountBalance = data.accounts
+    .filter((account) => account.includeInTotal && !account.archived)
+    .reduce((sum, account) => sum + calculateAccountBalance(account, data.transactions), 0);
+  const goalReserve = data.goals.reduce((sum, goal) => sum + Math.max(0, goal.saved), 0);
+  const safetyBuffer = Math.max(0, data.safetyBuffer);
+  const rawAvailable = accountBalance - scheduledExpenses - cardCommitments - goalReserve - safetyBuffer;
+  const daysUntilIncome = daysBetweenInclusive(today, nextIncomeDate);
+  const available = Math.max(0, rawAvailable);
+  return {
+    available,
+    rawAvailable,
+    shortfall: Math.max(0, -rawAvailable),
+    dailyAllowance: available / daysUntilIncome,
+    daysUntilIncome,
+    nextIncomeDate,
+    accountBalance,
+    scheduledExpenses,
+    cardCommitments,
+    goalReserve,
+    safetyBuffer,
+  };
+}
+
 export function getCategorySpending(data: FinanceData, month: string, categoryId: string) {
   return getMonthTransactions(data.transactions, month)
     .filter((transaction) => (transaction.kind === "expense" || transaction.kind === "card") && transaction.categoryId === categoryId)
@@ -212,6 +281,7 @@ export function createDemoData(): FinanceData {
       { id: "bud-transport", categoryId: "cat-transport", amount: 650, month },
     ],
     goals: [{ id: "goal-emergency", name: "Reserva de emergência", target: 25000, saved: 8700, targetDate: "2027-06-30", color: "#0B6B62" }],
+    safetyBuffer: 500,
     demoMode: true,
     hasSeenWelcome: false,
   };
@@ -219,5 +289,5 @@ export function createDemoData(): FinanceData {
 
 export function createEmptyData(): FinanceData {
   const demo = createDemoData();
-  return { ...demo, accounts: [], cards: [], transactions: [], budgets: [], goals: [], demoMode: false, hasSeenWelcome: true };
+  return { ...demo, accounts: [], cards: [], transactions: [], budgets: [], goals: [], safetyBuffer: 0, demoMode: false, hasSeenWelcome: true };
 }
