@@ -229,6 +229,14 @@ export type EndOfMonthForecast = {
   cardCommitments: number;
 };
 
+export type FinancialAlert = {
+  id: string;
+  severity: "warning" | "danger";
+  icon: "warning-amber" | "trending-up" | "credit-card";
+  title: string;
+  description: string;
+};
+
 const sumAmounts = (items: Transaction[]) => items.reduce((sum, item) => sum + item.amount, 0);
 const dateAtNoon = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`);
 const daysBetweenInclusive = (from: string, to: string) => Math.max(1, Math.round((dateAtNoon(to).getTime() - dateAtNoon(from).getTime()) / 86_400_000) + 1);
@@ -322,6 +330,104 @@ export function getCardUsage(data: FinanceData, card: CreditCard, month: string)
   return getMonthTransactions(data.transactions, month)
     .filter((transaction) => transaction.kind === "card" && transaction.cardId === card.id)
     .reduce((sum, transaction) => sum + transaction.amount, 0);
+}
+
+const monthDays = (month: string) => {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return new Date(year, monthNumber, 0).getDate();
+};
+
+const spentInCategoryThrough = (data: FinanceData, categoryId: string, month: string, throughDay: number) =>
+  data.transactions
+    .filter((transaction) => {
+      const day = Number(transaction.date.slice(8, 10));
+      return transaction.date.startsWith(month)
+        && day <= throughDay
+        && transaction.status !== "cancelled"
+        && (transaction.kind === "expense" || transaction.kind === "card")
+        && transaction.categoryId === categoryId;
+    })
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+
+const cardUsageThrough = (data: FinanceData, cardId: string, month: string, throughDay: number) =>
+  data.transactions
+    .filter((transaction) => transaction.kind === "card"
+      && transaction.cardId === cardId
+      && transaction.status !== "cancelled"
+      && transaction.date.startsWith(month)
+      && Number(transaction.date.slice(8, 10)) <= throughDay)
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+
+/**
+ * Produces explainable alerts only from registered entries. Comparisons use
+ * the same day-of-month in the prior month, so a partial current month is not
+ * unfairly compared against a complete prior month.
+ */
+export function getFinancialAlerts(data: FinanceData, today = todayIso()): FinancialAlert[] {
+  const month = today.slice(0, 7);
+  const day = Number(today.slice(8, 10));
+  const daysInCurrentMonth = monthDays(month);
+  const alerts: FinancialAlert[] = [];
+
+  data.budgets.filter((budget) => budget.month === month && budget.amount > 0).forEach((budget) => {
+    const category = data.categories.find((item) => item.id === budget.categoryId);
+    if (!category) return;
+    const spent = spentInCategoryThrough(data, budget.categoryId, month, day);
+    if (spent >= budget.amount) {
+      alerts.push({
+        id: `budget-over-${budget.id}`,
+        severity: "danger",
+        icon: "warning-amber",
+        title: `Orçamento de ${category.name} ultrapassado`,
+        description: `Você passou ${formatMoney(spent - budget.amount)} do limite de ${formatMoney(budget.amount)}.`,
+      });
+      return;
+    }
+    // Two days of history avoids a noisy forecast based on a single purchase.
+    if (day < 3 || spent <= 0) return;
+    const dailyPace = spent / day;
+    const projected = dailyPace * daysInCurrentMonth;
+    if (projected <= budget.amount) return;
+    const daysToLimit = Math.max(1, Math.ceil((budget.amount - spent) / dailyPace));
+    alerts.push({
+      id: `budget-pace-${budget.id}`,
+      severity: "warning",
+      icon: "trending-up",
+      title: `Ritmo alto em ${category.name}`,
+      description: `Nesse ritmo, você ultrapassa o orçamento em cerca de ${daysToLimit} ${daysToLimit === 1 ? "dia" : "dias"}.`,
+    });
+  });
+
+  const priorMonth = shiftMonth(month, -1);
+  data.cards.filter((card) => !card.archived).forEach((card) => {
+    const currentUsage = cardUsageThrough(data, card.id, month, day);
+    if (card.limit > 0 && currentUsage >= card.limit * 0.8) {
+      alerts.push({
+        id: `card-limit-${card.id}`,
+        severity: currentUsage >= card.limit ? "danger" : "warning",
+        icon: "credit-card",
+        title: `Limite de ${card.name} quase no fim`,
+        description: `${Math.round((currentUsage / card.limit) * 100)}% do limite já foi usado neste ciclo.`,
+      });
+    }
+    const priorUsage = cardUsageThrough(data, card.id, priorMonth, Math.min(day, monthDays(priorMonth)));
+    if (priorUsage <= 0 || currentUsage <= priorUsage) return;
+    const increase = ((currentUsage - priorUsage) / priorUsage) * 100;
+    // 20% and R$ 20 avoid alerts caused by a tiny base value.
+    if (increase < 20 || currentUsage - priorUsage < 20) return;
+    alerts.push({
+      id: `card-increase-${card.id}`,
+      severity: "warning",
+      icon: "trending-up",
+      title: `Fatura de ${card.name} maior`,
+      description: `Está ${Math.round(increase)}% acima do mesmo período do mês passado.`,
+    });
+  });
+
+  return alerts.sort((a, b) => {
+    const priority = (alert: FinancialAlert) => alert.severity === "danger" ? 0 : 1;
+    return priority(a) - priority(b);
+  });
 }
 
 export function createDemoData(): FinanceData {

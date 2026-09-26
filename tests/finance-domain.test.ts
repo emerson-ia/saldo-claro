@@ -5,6 +5,7 @@ import {
   currentMonth,
   getMonthlySummary,
   getEndOfMonthForecast,
+  getFinancialAlerts,
   generateRecurringTransactions,
   getSafeToSpendSummary,
   isInMonth,
@@ -83,6 +84,31 @@ describe("regras de cálculo financeiro", () => {
     expect(forecast.expectedExpenses).toBe(120);
     expect(forecast.cardCommitments).toBe(180);
     expect(forecast.projectedBalance).toBe(1100);
+  });
+
+  it("gera alertas explicáveis para orçamento em risco, limite e fatura maior", () => {
+    const alertData: FinanceData = {
+      ...makeData([
+        { id: "food-1", kind: "expense", description: "Mercado", amount: 450, date: "2026-09-10", accountId: "a", categoryId: "food", status: "paid", createdAt: "2026-09-10" },
+        { id: "card-now", kind: "card", description: "Compras", amount: 310, date: "2026-09-12", cardId: "card-1", status: "paid", createdAt: "2026-09-12" },
+        { id: "card-before", kind: "card", description: "Compras", amount: 200, date: "2026-08-12", cardId: "card-1", status: "paid", createdAt: "2026-08-12" },
+      ]),
+      categories: [{ id: "food", name: "Alimentação", kind: "expense", color: "#D97B18", icon: "restaurant" }],
+      cards: [{ id: "card-1", name: "Cartão principal", brand: "Visa", limit: 350, closingDay: 25, dueDay: 5, color: "#163C57" }],
+      budgets: [{ id: "food-budget", categoryId: "food", amount: 500, month: "2026-09" }],
+    };
+    const alerts = getFinancialAlerts(alertData, "2026-09-15");
+    expect(alerts.map((alert) => alert.id)).toEqual(expect.arrayContaining(["budget-pace-food-budget", "card-limit-card-1", "card-increase-card-1"]));
+    expect(alerts.find((alert) => alert.id === "card-increase-card-1")?.description).toContain("55% acima");
+  });
+
+  it("não avisa que orçamento vai estourar quando o ritmo cabe no limite", () => {
+    const calmData: FinanceData = {
+      ...makeData([{ id: "food-2", kind: "expense", description: "Mercado", amount: 100, date: "2026-09-10", accountId: "a", categoryId: "food", status: "paid", createdAt: "2026-09-10" }]),
+      categories: [{ id: "food", name: "Alimentação", kind: "expense", color: "#D97B18", icon: "restaurant" }],
+      budgets: [{ id: "food-budget", categoryId: "food", amount: 500, month: "2026-09" }],
+    };
+    expect(getFinancialAlerts(calmData, "2026-09-15")).toHaveLength(0);
   });
 
   it("gera ocorrências mensais sem duplicar a ocorrência já registrada", () => {
