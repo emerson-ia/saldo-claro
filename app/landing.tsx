@@ -160,7 +160,7 @@ export default function LandingPage() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const desktop = width >= 880;
-  const start = () => router.push("/auth/login" as never);
+  const start = () => router.push("/auth/register" as never);
   return (
     <View style={styles.page}>
       <ScrollView

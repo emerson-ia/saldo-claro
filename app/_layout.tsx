@@ -25,6 +25,8 @@ function RootNavigator() {
             <AuthGate>
               <Stack screenOptions={{ headerShown: false, animation: "fade", contentStyle: { backgroundColor: colors.background } }}>
                 <Stack.Screen name="auth/login" />
+                <Stack.Screen name="auth/register" />
+                <Stack.Screen name="auth/recover" />
                 <Stack.Screen name="auth/callback" />
                 <Stack.Screen name="landing" />
                 <Stack.Screen name="welcome" />

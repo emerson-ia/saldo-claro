@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useState } from 'react';
+import { router } from 'expo-router';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
 import { useAuth } from '@/lib/auth-provider';
@@ -7,10 +8,9 @@ import { useFinanceTheme } from '@/lib/finance-theme';
 
 type Mode = 'login' | 'signup' | 'reset';
 
-export default function LoginScreen() {
+export function AuthScreen({ mode }: { mode: Mode }) {
   const { configured, signIn, signUp, resetPassword, signInWithGoogle } = useAuth();
   const { colors } = useFinanceTheme();
-  const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -47,7 +47,7 @@ export default function LoginScreen() {
       if (mode === 'reset') {
         await resetPassword(email);
         Alert.alert('Confira seu e-mail', 'Enviamos um link seguro para redefinir sua senha.');
-        setMode('login');
+        router.replace('/auth/login' as never);
       }
     } catch (error) {
       Alert.alert('Não foi possível continuar', error instanceof Error ? error.message : 'Tente novamente em alguns instantes.');
@@ -77,18 +77,22 @@ export default function LoginScreen() {
           <Field label="Seu e-mail" value={email} onChangeText={setEmail} placeholder="voce@email.com" keyboardType="email-address" autoCapitalize="none" colors={colors} />
           {mode !== 'reset' ? <Field label="Senha" value={password} onChangeText={setPassword} placeholder="No mínimo 6 caracteres" secureTextEntry colors={colors} /> : null}
           {mode === 'signup' ? <><Field label="Repita sua senha" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Digite novamente" secureTextEntry colors={colors} /><View style={[styles.confirmationNotice, { backgroundColor: colors.accent }]}><MaterialIcons name="mark-email-read" size={18} color={colors.primary} /><Text style={[styles.confirmationText, { color: colors.text }]}>Depois de criar a conta, você precisa confirmar o link enviado para seu e-mail antes de entrar.</Text></View></> : null}
-          {mode === 'login' ? <Pressable onPress={() => setMode('reset')} hitSlop={10} style={styles.recovery}><Text style={[styles.recoveryText, { color: colors.primary }]}>Esqueci minha senha</Text></Pressable> : null}
+          {mode === 'login' ? <Pressable accessibilityRole="link" onPress={() => router.push('/auth/recover' as never)} hitSlop={10} style={styles.recovery}><Text style={[styles.recoveryText, { color: colors.primary }]}>Esqueci minha senha</Text></Pressable> : null}
           <Pressable disabled={submitting} onPress={submit} style={({ pressed }) => [styles.primary, { backgroundColor: colors.primary, opacity: pressed || submitting ? 0.72 : 1 }]}><Text style={[styles.primaryText, { color: colors.onPrimary }]}>{submitting ? 'Aguarde...' : mode === 'login' ? 'Entrar' : mode === 'signup' ? 'Criar conta e enviar confirmação' : 'Enviar link de recuperação'}</Text><MaterialIcons name={mode === 'reset' ? 'mail-outline' : 'arrow-forward'} size={20} color={colors.onPrimary} /></Pressable>
         </View>
 
         {mode !== 'reset' ? <><View style={styles.divider}><View style={[styles.dividerLine, { backgroundColor: colors.border }]} /><Text style={[styles.dividerText, { color: colors.muted }]}>ou continue com</Text><View style={[styles.dividerLine, { backgroundColor: colors.border }]} /></View>
         <Pressable disabled={submitting} onPress={google} style={({ pressed }) => [styles.google, { borderColor: colors.border, backgroundColor: colors.surface, opacity: pressed || submitting ? 0.7 : 1 }]}><MaterialIcons name="g-translate" size={20} color={colors.text} /><Text style={[styles.googleText, { color: colors.text }]}>Google</Text></Pressable></> : null}
 
-        <View style={styles.switchRow}><Text style={[styles.switchCopy, { color: colors.muted }]}>{mode === 'login' ? 'Ainda não tem conta?' : mode === 'signup' ? 'Já tem uma conta?' : 'Lembrou sua senha?'}</Text><Pressable onPress={() => setMode(mode === 'login' ? 'signup' : 'login')} hitSlop={10}><Text style={[styles.switchAction, { color: colors.primary }]}>{mode === 'login' ? 'Criar agora' : 'Entrar'}</Text></Pressable></View>
+        <View style={styles.switchRow}><Text style={[styles.switchCopy, { color: colors.muted }]}>{mode === 'login' ? 'Ainda não tem conta?' : mode === 'signup' ? 'Já tem uma conta?' : 'Lembrou sua senha?'}</Text><Pressable accessibilityRole="link" onPress={() => router.push((mode === 'login' ? '/auth/register' : '/auth/login') as never)} hitSlop={10}><Text style={[styles.switchAction, { color: colors.primary }]}>{mode === 'login' ? 'Criar agora' : 'Entrar'}</Text></Pressable></View>
         {!configured ? <View style={[styles.notice, { backgroundColor: colors.accent }]}><MaterialIcons name="info-outline" size={17} color={colors.primary} /><Text style={[styles.noticeText, { color: colors.primary }]}>A interface está pronta. Falta conectar o Supabase para ativar as contas.</Text></View> : null}
       </ScrollView>
     </KeyboardAvoidingView>
   </ScreenContainer>;
+}
+
+export default function LoginScreen() {
+  return <AuthScreen mode="login" />;
 }
 
 function Field({ label, colors, ...input }: { label: string; colors: ReturnType<typeof useFinanceTheme>['colors'] } & React.ComponentProps<typeof TextInput>) { return <View style={styles.field}><Text style={[styles.label, { color: colors.text }]}>{label}</Text><TextInput {...input} placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, borderColor: colors.border }]} /></View>; }
