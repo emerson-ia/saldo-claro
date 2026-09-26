@@ -363,7 +363,7 @@ const cardUsageThrough = (data: FinanceData, cardId: string, month: string, thro
  * the same day-of-month in the prior month, so a partial current month is not
  * unfairly compared against a complete prior month.
  */
-export function getFinancialAlerts(data: FinanceData, today = todayIso()): FinancialAlert[] {
+export function getFinancialAlerts(data: FinanceData, today = todayIso(), hidden = false): FinancialAlert[] {
   const month = today.slice(0, 7);
   const day = Number(today.slice(8, 10));
   const daysInCurrentMonth = monthDays(month);
@@ -379,7 +379,7 @@ export function getFinancialAlerts(data: FinanceData, today = todayIso()): Finan
         severity: "danger",
         icon: "warning-amber",
         title: `Orçamento de ${category.name} ultrapassado`,
-        description: `Você passou ${formatMoney(spent - budget.amount)} do limite de ${formatMoney(budget.amount)}.`,
+        description: `Você passou ${formatMoney(spent - budget.amount, hidden)} do limite de ${formatMoney(budget.amount, hidden)}.`,
       });
       return;
     }

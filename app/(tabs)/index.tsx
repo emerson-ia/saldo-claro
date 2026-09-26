@@ -22,7 +22,7 @@ export default function HomeScreen() {
   const safeToSpend = getSafeToSpendSummary(financeData);
   const endOfMonthForecast = getEndOfMonthForecast(financeData);
   const recentTransactions = useMemo(() => transactions.filter((item) => item.date.startsWith(month)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5), [transactions, month]);
-  const alerts = getFinancialAlerts(financeData);
+  const alerts = getFinancialAlerts(financeData, undefined, privacyMode);
   useEffect(() => { if (ready && !hasSeenWelcome) router.replace("/welcome"); }, [ready, hasSeenWelcome]);
   if (!ready) return <ScreenContainer><View style={styles.loading}><Text style={[styles.loadingText, { color: colors.muted }]}>Preparando seu painel…</Text></View></ScreenContainer>;
   return <ScreenContainer>
