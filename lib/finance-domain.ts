@@ -174,6 +174,15 @@ export type SafeToSpendSummary = {
   safetyBuffer: number;
 };
 
+export type EndOfMonthForecast = {
+  month: string;
+  projectedBalance: number;
+  accountBalance: number;
+  expectedIncome: number;
+  expectedExpenses: number;
+  cardCommitments: number;
+};
+
 const sumAmounts = (items: Transaction[]) => items.reduce((sum, item) => sum + item.amount, 0);
 const dateAtNoon = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`);
 const daysBetweenInclusive = (from: string, to: string) => Math.max(1, Math.round((dateAtNoon(to).getTime() - dateAtNoon(from).getTime()) / 86_400_000) + 1);
@@ -224,6 +233,36 @@ export function getSafeToSpendSummary(data: FinanceData, today = todayIso()): Sa
     cardCommitments,
     goalReserve,
     safetyBuffer,
+  };
+}
+
+/**
+ * Forecasts the cash position at the end of the current month using only
+ * entries the person has already registered. Card purchases are deducted here
+ * even when marked paid because they do not affect an account balance until
+ * the invoice is settled.
+ */
+export function getEndOfMonthForecast(data: FinanceData, today = todayIso()): EndOfMonthForecast {
+  const month = today.slice(0, 7);
+  const activeTransactions = getMonthTransactions(data.transactions, month);
+  const accountBalance = data.accounts
+    .filter((account) => account.includeInTotal && !account.archived)
+    .reduce((sum, account) => sum + calculateAccountBalance(account, data.transactions), 0);
+  const expectedIncome = sumAmounts(activeTransactions.filter((item) =>
+    item.kind === "income" && !transactionIsRealized(item),
+  ));
+  const expectedExpenses = sumAmounts(activeTransactions.filter((item) =>
+    item.kind === "expense" && !transactionIsRealized(item),
+  ));
+  const cardCommitments = sumAmounts(activeTransactions.filter((item) => item.kind === "card"));
+
+  return {
+    month,
+    accountBalance,
+    expectedIncome,
+    expectedExpenses,
+    cardCommitments,
+    projectedBalance: accountBalance + expectedIncome - expectedExpenses - cardCommitments,
   };
 }
 

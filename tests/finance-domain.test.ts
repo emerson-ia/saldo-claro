@@ -4,6 +4,7 @@ import {
   createDemoData,
   currentMonth,
   getMonthlySummary,
+  getEndOfMonthForecast,
   getSafeToSpendSummary,
   isInMonth,
   shiftMonth,
@@ -67,6 +68,20 @@ describe("regras de cálculo financeiro", () => {
     expect(summary.cardCommitments).toBe(180);
     expect(summary.goalReserve).toBe(250);
     expect(summary.available).toBe(350);
+  });
+
+  it("projeta o fim do mês sem tratar compra no cartão como saldo já debitado", () => {
+    const forecastEntries: Transaction[] = [
+      { id: "t6", kind: "income", description: "Freela", amount: 400, date: `${month}-24`, accountId: "a", status: "pending", createdAt: `${month}-01` },
+      { id: "t7", kind: "expense", description: "Internet", amount: 120, date: `${month}-25`, accountId: "a", status: "pending", createdAt: `${month}-01` },
+      { id: "t8", kind: "card", description: "Mercado", amount: 180, date: `${month}-12`, cardId: "card-1", status: "paid", createdAt: `${month}-01` },
+    ];
+    const forecast = getEndOfMonthForecast(makeData(forecastEntries), `${month}-10`);
+    expect(forecast.accountBalance).toBe(1000);
+    expect(forecast.expectedIncome).toBe(400);
+    expect(forecast.expectedExpenses).toBe(120);
+    expect(forecast.cardCommitments).toBe(180);
+    expect(forecast.projectedBalance).toBe(1100);
   });
 
   it("entrega dados demonstrativos separados com contas, cartões e planejamento", () => {
