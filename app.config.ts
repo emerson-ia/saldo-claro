@@ -85,7 +85,13 @@ const config: ExpoConfig = {
     backgroundColor: "#F4F5ED",
   },
   plugins: [
-    "expo-router",
+    [
+      "expo-router",
+      {
+        origin: "https://saldo-claro.pages.dev",
+        asyncRoutes: { web: "production" },
+      },
+    ],
     "expo-font",
     "expo-web-browser",
     [

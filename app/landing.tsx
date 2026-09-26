@@ -1,5 +1,6 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -159,7 +160,11 @@ function SecurityItem({
 export default function LandingPage() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const desktop = width >= 880;
+  // The server cannot know the visitor's viewport. Rendering the mobile tree
+  // first on both sides prevents a server/client hydration mismatch (#418).
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  const desktop = hydrated && width >= 880;
   const start = () => router.push("/auth/register" as never);
   return (
     <View style={styles.page}>
