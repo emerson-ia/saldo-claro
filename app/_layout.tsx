@@ -29,6 +29,10 @@ function RootNavigator() {
                 <Stack.Screen name="auth/recover" />
                 <Stack.Screen name="auth/callback" />
                 <Stack.Screen name="landing" />
+                <Stack.Screen name="legal/terms" />
+                <Stack.Screen name="legal/privacy" />
+                <Stack.Screen name="support" />
+                <Stack.Screen name="delete-account" />
                 <Stack.Screen name="welcome" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="accounts" options={{ presentation: "card" }} />

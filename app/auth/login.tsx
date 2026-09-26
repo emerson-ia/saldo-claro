@@ -14,6 +14,8 @@ export function AuthScreen({ mode }: { mode: Mode }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   const title = mode === 'login' ? 'Sua vida financeira, no lugar certo.' : mode === 'signup' ? 'Crie seu espaço financeiro.' : 'Recupere seu acesso.';
@@ -24,18 +26,13 @@ export function AuthScreen({ mode }: { mode: Mode }) {
       Alert.alert('Configuração pendente', 'Falta conectar o Supabase para ativar login e sincronização.');
       return;
     }
-    if (!email.includes('@')) {
-      Alert.alert('E-mail inválido', 'Informe um e-mail válido para continuar.');
-      return;
-    }
-    if (mode !== 'reset' && password.length < 6) {
-      Alert.alert('Senha muito curta', 'Use pelo menos 6 caracteres.');
-      return;
-    }
-    if (mode === 'signup' && password !== confirmPassword) {
-      Alert.alert('As senhas não conferem', 'Digite a mesma senha nos dois campos.');
-      return;
-    }
+    const nextErrors: Record<string, string> = {};
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) nextErrors.email = 'Informe um e-mail válido.';
+    if (mode !== 'reset' && password.length < 6) nextErrors.password = 'Use pelo menos 6 caracteres.';
+    if (mode === 'signup' && password !== confirmPassword) nextErrors.confirmPassword = 'As senhas precisam ser iguais.';
+    if (mode === 'signup' && !acceptedTerms) nextErrors.terms = 'Você precisa aceitar os Termos e a Política de Privacidade.';
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
 
     setSubmitting(true);
     try {
@@ -74,9 +71,9 @@ export function AuthScreen({ mode }: { mode: Mode }) {
         <Text style={[styles.subtitle, { color: colors.muted }]}>{subtitle}</Text>
 
         <View style={[styles.form, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Field label="Seu e-mail" value={email} onChangeText={setEmail} placeholder="voce@email.com" keyboardType="email-address" autoCapitalize="none" colors={colors} />
-          {mode !== 'reset' ? <Field label="Senha" value={password} onChangeText={setPassword} placeholder="No mínimo 6 caracteres" secureTextEntry colors={colors} /> : null}
-          {mode === 'signup' ? <><Field label="Repita sua senha" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Digite novamente" secureTextEntry colors={colors} /><View style={[styles.confirmationNotice, { backgroundColor: colors.accent }]}><MaterialIcons name="mark-email-read" size={18} color={colors.primary} /><Text style={[styles.confirmationText, { color: colors.text }]}>Depois de criar a conta, você precisa confirmar o link enviado para seu e-mail antes de entrar.</Text></View></> : null}
+          <Field label="Seu e-mail" error={errors.email} value={email} onChangeText={(value) => { setEmail(value); setErrors((current) => ({ ...current, email: '' })); }} placeholder="voce@email.com" keyboardType="email-address" autoComplete="email" textContentType="emailAddress" autoCapitalize="none" colors={colors} />
+          {mode !== 'reset' ? <Field label="Senha" error={errors.password} value={password} onChangeText={(value) => { setPassword(value); setErrors((current) => ({ ...current, password: '' })); }} placeholder="No mínimo 6 caracteres" secureTextEntry autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} textContentType={mode === 'signup' ? 'newPassword' : 'password'} colors={colors} /> : null}
+          {mode === 'signup' ? <><Field label="Repita sua senha" error={errors.confirmPassword} value={confirmPassword} onChangeText={(value) => { setConfirmPassword(value); setErrors((current) => ({ ...current, confirmPassword: '' })); }} placeholder="Digite novamente" secureTextEntry autoComplete="new-password" textContentType="newPassword" colors={colors} /><Pressable accessibilityRole="checkbox" accessibilityState={{ checked: acceptedTerms }} onPress={() => { setAcceptedTerms((value) => !value); setErrors((current) => ({ ...current, terms: '' })); }} style={styles.termsRow}><MaterialIcons name={acceptedTerms ? 'check-box' : 'check-box-outline-blank'} size={22} color={errors.terms ? colors.negative : colors.primary} /><Text style={[styles.termsText, { color: colors.muted }]}>Li e aceito os <Text onPress={() => router.push('/legal/terms' as never)} style={{ color: colors.primary, fontWeight: '800' }}>Termos de Uso</Text> e a <Text onPress={() => router.push('/legal/privacy' as never)} style={{ color: colors.primary, fontWeight: '800' }}>Política de Privacidade</Text>.</Text></Pressable>{errors.terms ? <Text accessibilityLiveRegion="polite" style={[styles.fieldError, { color: colors.negative }]}>{errors.terms}</Text> : null}<View style={[styles.confirmationNotice, { backgroundColor: colors.accent }]}><MaterialIcons name="mark-email-read" size={18} color={colors.primary} /><Text style={[styles.confirmationText, { color: colors.text }]}>Depois de criar a conta, você precisa confirmar o link enviado para seu e-mail antes de entrar.</Text></View></> : null}
           {mode === 'login' ? <Pressable accessibilityRole="link" onPress={() => router.push('/auth/recover' as never)} hitSlop={10} style={styles.recovery}><Text style={[styles.recoveryText, { color: colors.primary }]}>Esqueci minha senha</Text></Pressable> : null}
           <Pressable disabled={submitting} onPress={submit} style={({ pressed }) => [styles.primary, { backgroundColor: colors.primary, opacity: pressed || submitting ? 0.72 : 1 }]}><Text style={[styles.primaryText, { color: colors.onPrimary }]}>{submitting ? 'Aguarde...' : mode === 'login' ? 'Entrar' : mode === 'signup' ? 'Criar conta e enviar confirmação' : 'Enviar link de recuperação'}</Text><MaterialIcons name={mode === 'reset' ? 'mail-outline' : 'arrow-forward'} size={20} color={colors.onPrimary} /></Pressable>
         </View>
@@ -95,8 +92,8 @@ export default function LoginScreen() {
   return <AuthScreen mode="login" />;
 }
 
-function Field({ label, colors, ...input }: { label: string; colors: ReturnType<typeof useFinanceTheme>['colors'] } & React.ComponentProps<typeof TextInput>) { return <View style={styles.field}><Text style={[styles.label, { color: colors.text }]}>{label}</Text><TextInput {...input} placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, borderColor: colors.border }]} /></View>; }
+function Field({ label, colors, error, ...input }: { label: string; error?: string; colors: ReturnType<typeof useFinanceTheme>['colors'] } & React.ComponentProps<typeof TextInput>) { return <View style={styles.field}><Text style={[styles.label, { color: colors.text }]}>{label}</Text><TextInput {...input} accessibilityLabel={label} accessibilityHint={error} placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, borderColor: error ? colors.negative : colors.border }]} />{error ? <Text accessibilityLiveRegion="polite" style={[styles.fieldError, { color: colors.negative }]}>{error}</Text> : null}</View>; }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 }, scroll: { flexGrow: 1, padding: 28, paddingTop: 58, paddingBottom: 32 }, mark: { width: 66, height: 66, borderRadius: 22, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, markDot: { position: 'absolute', width: 9, height: 9, borderRadius: 5, backgroundColor: '#E5B24B', top: 13, right: 13 }, brand: { marginTop: 28, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }, title: { marginTop: 9, fontSize: 30, lineHeight: 37, letterSpacing: -0.75, fontWeight: '800' }, subtitle: { marginTop: 10, fontSize: 15, lineHeight: 23 }, form: { marginTop: 31, borderWidth: 1, borderRadius: 22, padding: 18 }, field: { marginBottom: 16 }, label: { fontSize: 13, fontWeight: '800', marginBottom: 8 }, input: { height: 50, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, fontSize: 15, fontWeight: '600' }, recovery: { alignSelf: 'flex-start', marginTop: -5, marginBottom: 21 }, recoveryText: { fontSize: 13, fontWeight: '800' }, primary: { height: 53, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 4 }, primaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' }, divider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 23 }, dividerLine: { height: 1, flex: 1 }, dividerText: { fontSize: 12, fontWeight: '700' }, google: { height: 52, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 9 }, googleText: { fontSize: 14, fontWeight: '800' }, switchRow: { marginTop: 26, justifyContent: 'center', flexDirection: 'row', gap: 5 }, switchCopy: { fontSize: 13 }, switchAction: { fontSize: 13, fontWeight: '800' }, notice: { marginTop: 26, padding: 13, borderRadius: 15, flexDirection: 'row', gap: 9, alignItems: 'flex-start' }, noticeText: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: '700' }, confirmationNotice: { borderRadius: 14, padding: 12, flexDirection: 'row', gap: 9, alignItems: 'flex-start', marginTop: -2, marginBottom: 19 }, confirmationText: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  flex: { flex: 1 }, scroll: { flexGrow: 1, padding: 28, paddingTop: 58, paddingBottom: 32 }, mark: { width: 66, height: 66, borderRadius: 22, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, markDot: { position: 'absolute', width: 9, height: 9, borderRadius: 5, backgroundColor: '#E5B24B', top: 13, right: 13 }, brand: { marginTop: 28, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }, title: { marginTop: 9, fontSize: 30, lineHeight: 37, letterSpacing: -0.75, fontWeight: '800' }, subtitle: { marginTop: 10, fontSize: 15, lineHeight: 23 }, form: { marginTop: 31, borderWidth: 1, borderRadius: 22, padding: 18 }, field: { marginBottom: 16 }, label: { fontSize: 13, fontWeight: '800', marginBottom: 8 }, input: { height: 50, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, fontSize: 15, fontWeight: '600' }, fieldError: { fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 6 }, termsRow: { flexDirection: 'row', gap: 9, alignItems: 'flex-start', marginTop: -2, marginBottom: 8 }, termsText: { flex: 1, fontSize: 12, lineHeight: 17 }, recovery: { alignSelf: 'flex-start', marginTop: -5, marginBottom: 21 }, recoveryText: { fontSize: 13, fontWeight: '800' }, primary: { height: 53, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 4 }, primaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' }, divider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 23 }, dividerLine: { height: 1, flex: 1 }, dividerText: { fontSize: 12, fontWeight: '700' }, google: { height: 52, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 9 }, googleText: { fontSize: 14, fontWeight: '800' }, switchRow: { marginTop: 26, justifyContent: 'center', flexDirection: 'row', gap: 5 }, switchCopy: { fontSize: 13 }, switchAction: { fontSize: 13, fontWeight: '800' }, notice: { marginTop: 26, padding: 13, borderRadius: 15, flexDirection: 'row', gap: 9, alignItems: 'flex-start' }, noticeText: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: '700' }, confirmationNotice: { borderRadius: 14, padding: 12, flexDirection: 'row', gap: 9, alignItems: 'flex-start', marginTop: -2, marginBottom: 19 }, confirmationText: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: '700' },
 });

@@ -78,6 +78,11 @@ const config: ExpoConfig = {
     bundler: "metro",
     output: "static",
     favicon: "./assets/images/favicon.png",
+    name: "Saldo Claro",
+    shortName: "Saldo Claro",
+    description: "Clareza para decidir quanto você pode gastar no mês.",
+    themeColor: "#0A2421",
+    backgroundColor: "#F4F5ED",
   },
   plugins: [
     "expo-router",

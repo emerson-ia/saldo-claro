@@ -1,0 +1,11 @@
+{
+  "name": "Saldo Claro",
+  "short_name": "Saldo Claro",
+  "description": "Clareza para decidir quanto você pode gastar no mês.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4F5ED",
+  "theme_color": "#0A2421",
+  "icons": [{ "src": "/favicon.ico", "sizes": "48x48", "type": "image/x-icon" }]
+}

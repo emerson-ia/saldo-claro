@@ -32,6 +32,7 @@ type AuthContextValue = {
   signInWithGoogle: () => Promise<void>;
   verifyPassword: (password: string) => Promise<void>;
   updateName: (name: string) => Promise<void>;
+  requestAccountDeletion: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -160,6 +161,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
     );
   }, []);
 
+  const requestAccountDeletion = useCallback(async () => {
+    const userId = session?.user.id;
+    if (!userId) throw new Error("Entre novamente para solicitar a exclusão.");
+    const { error } = await getSupabase().from("finance_data_rights_requests").insert({
+      user_id: userId,
+      request_type: "account_deletion",
+    });
+    if (error?.code === "23505") throw new Error("Já existe uma solicitação de exclusão em andamento para esta conta.");
+    if (error) throw new Error(readableError(error));
+  }, [session?.user.id]);
+
   const signOut = useCallback(async () => {
     const { error } = await getSupabase().auth.signOut();
     if (error) throw new Error(readableError(error));
@@ -177,6 +189,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       signInWithGoogle,
       verifyPassword,
       updateName,
+      requestAccountDeletion,
       signOut,
     }),
     [
@@ -189,6 +202,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       signInWithGoogle,
       verifyPassword,
       updateName,
+      requestAccountDeletion,
       signOut,
     ],
   );
@@ -211,7 +225,7 @@ export function AuthGate({ children }: PropsWithChildren) {
     if (loading) return;
     const firstSegment = segments[0] as string | undefined;
     const onAuthRoute = firstSegment === "auth";
-    const onPublicRoute = onAuthRoute || firstSegment === "landing";
+    const onPublicRoute = onAuthRoute || firstSegment === "landing" || firstSegment === "legal" || firstSegment === "support";
     if (!configured || !user) {
       // Acquisition comes before authentication: an anonymous visitor belongs
       // on the public product page, never on a dead-end login screen.

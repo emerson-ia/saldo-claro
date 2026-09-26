@@ -1,0 +1,22 @@
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { router } from "expo-router";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScreenContainer } from "@/components/screen-container";
+import { useAuth } from "@/lib/auth-provider";
+import { useFinanceTheme } from "@/lib/finance-theme";
+
+export default function SupportScreen() {
+  const { user } = useAuth(); const { colors } = useFinanceTheme();
+  return <ScreenContainer><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Voltar" onPress={() => router.canGoBack() ? router.back() : router.replace('/landing' as never)} style={({ pressed }) => [styles.back, { backgroundColor: colors.elevated, opacity: pressed ? .65 : 1 }]}><MaterialIcons name="arrow-back" size={20} color={colors.text} /></Pressable>
+    <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>Como podemos resolver?</Text>
+    <Text style={[styles.subtitle, { color: colors.muted }]}>Acesse sua conta para usar os controles de dados e abrir solicitações vinculadas ao seu e-mail.</Text>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}><MaterialIcons name="shield" size={22} color={colors.primary} /><View style={styles.copy}><Text style={[styles.cardTitle, { color: colors.text }]}>Dados e privacidade</Text><Text style={[styles.cardText, { color: colors.muted }]}>Consulte a política, entenda seus direitos ou solicite a exclusão da conta.</Text></View></View>
+    {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/delete-account' as never)} style={({ pressed }) => [styles.primary, { backgroundColor: colors.primary, opacity: pressed ? .7 : 1 }]}><Text style={[styles.primaryText, { color: colors.onPrimary }]}>Gerenciar dados da conta</Text><MaterialIcons name="arrow-forward" size={20} color={colors.onPrimary} /></Pressable> : <Pressable accessibilityRole="button" onPress={() => router.push('/auth/login' as never)} style={({ pressed }) => [styles.primary, { backgroundColor: colors.primary, opacity: pressed ? .7 : 1 }]}><Text style={[styles.primaryText, { color: colors.onPrimary }]}>Entrar na conta</Text><MaterialIcons name="arrow-forward" size={20} color={colors.onPrimary} /></Pressable>}
+    <Text style={[styles.section, { color: colors.muted }]}>ATALHOS</Text>
+    <LinkRow icon="policy" title="Termos de Uso" onPress={() => router.push('/legal/terms' as never)} colors={colors} />
+    <LinkRow icon="privacy-tip" title="Política de Privacidade" onPress={() => router.push('/legal/privacy' as never)} colors={colors} />
+  </ScrollView></ScreenContainer>;
+}
+function LinkRow({ icon, title, onPress, colors }: { icon: keyof typeof MaterialIcons.glyphMap; title: string; onPress: () => void; colors: ReturnType<typeof useFinanceTheme>['colors'] }) { return <Pressable accessibilityRole="link" onPress={onPress} style={({ pressed }) => [styles.row, { borderColor: colors.border, backgroundColor: colors.surface, opacity: pressed ? .7 : 1 }]}><MaterialIcons name={icon} size={20} color={colors.primary} /><Text style={[styles.rowText, { color: colors.text }]}>{title}</Text><MaterialIcons name="chevron-right" size={20} color={colors.muted} /></Pressable>; }
+const styles = StyleSheet.create({ content: { padding: 20, paddingBottom: 32, maxWidth: 640, width: '100%', alignSelf: 'center' }, back: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 28 }, title: { fontSize: 31, letterSpacing: -.8, lineHeight: 38, fontWeight: '900' }, subtitle: { fontSize: 14, lineHeight: 21, marginTop: 9, maxWidth: 500 }, card: { marginTop: 28, borderWidth: 1, borderRadius: 19, padding: 16, flexDirection: 'row', gap: 12 }, copy: { flex: 1 }, cardTitle: { fontSize: 14, fontWeight: '900' }, cardText: { fontSize: 12, lineHeight: 18, marginTop: 4 }, primary: { height: 52, borderRadius: 16, marginTop: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }, primaryText: { fontSize: 14, fontWeight: '900' }, section: { fontSize: 10, fontWeight: '900', letterSpacing: .9, marginTop: 28, marginBottom: 8 }, row: { minHeight: 61, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, alignItems: 'center', flexDirection: 'row', gap: 12, marginBottom: 9 }, rowText: { flex: 1, fontSize: 14, fontWeight: '800' } });

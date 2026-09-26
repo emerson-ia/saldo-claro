@@ -536,6 +536,11 @@ export default function LandingPage() {
           <Text style={styles.footerText}>
             Seu dinheiro mais claro. Sua vida mais leve.
           </Text>
+          <View style={styles.footerLinks}>
+            <Pressable accessibilityRole="link" onPress={() => router.push('/legal/terms' as never)}><Text style={styles.footerLink}>Termos de Uso</Text></Pressable>
+            <Pressable accessibilityRole="link" onPress={() => router.push('/legal/privacy' as never)}><Text style={styles.footerLink}>Privacidade</Text></Pressable>
+            <Pressable accessibilityRole="link" onPress={() => router.push('/support' as never)}><Text style={styles.footerLink}>Suporte</Text></Pressable>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -1080,6 +1085,8 @@ const styles = StyleSheet.create({
   },
   footerBrand: { color: "#12302C" },
   footerText: { color: "#607873", fontSize: 10, fontWeight: "700" },
+  footerLinks: { flexDirection: "row", flexWrap: "wrap", gap: 14, marginTop: 15 },
+  footerLink: { color: "#0B6B62", fontSize: 12, fontWeight: "800" },
   pricingSection: { paddingTop: 55, paddingBottom: 56 },
   pricingIntro: {
     color: "#607873",
