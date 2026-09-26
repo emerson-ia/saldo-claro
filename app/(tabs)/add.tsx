@@ -11,7 +11,7 @@ import { useFinanceTheme } from "@/lib/finance-theme";
 const kinds: TransactionKind[] = ["expense", "income", "transfer", "card"];
 
 export default function AddScreen() {
-  const { accounts, categories, cards, addTransaction } = useFinance();
+  const { accounts, categories, cards, addTransaction, addRecurringTransaction } = useFinance();
   const { colors } = useFinanceTheme();
   const [kind, setKind] = useState<TransactionKind>("expense");
   const [description, setDescription] = useState("");
@@ -22,6 +22,7 @@ export default function AddScreen() {
   const [categoryId, setCategoryId] = useState(categories.find((item) => item.kind === "expense")?.id ?? "");
   const [cardId, setCardId] = useState(cards[0]?.id ?? "");
   const [isPending, setIsPending] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
   const [saving, setSaving] = useState(false);
   const eligibleCategories = useMemo(() => categories.filter((item) => item.kind === (kind === "income" ? "income" : "expense")), [categories, kind]);
   const parsedAmount = Number(amount.replace(/[R$\s.]/g, "").replace(",", "."));
@@ -34,7 +35,8 @@ export default function AddScreen() {
     if (kind === "card" && !cardId) return Alert.alert("Selecione um cartão", "Cadastre ou escolha um cartão para registrar esta compra.");
     setSaving(true);
     try {
-      addTransaction({ kind, description: description.trim(), amount: parsedAmount, date, accountId: kind === "card" ? undefined : accountId || undefined, destinationAccountId: kind === "transfer" ? destinationAccountId : undefined, cardId: kind === "card" ? cardId : undefined, categoryId: kind === "transfer" ? undefined : categoryId || undefined, status: isPending ? "pending" : kind === "income" ? "received" : "paid" });
+      const next = { kind, description: description.trim(), amount: parsedAmount, date, accountId: kind === "card" ? undefined : accountId || undefined, destinationAccountId: kind === "transfer" ? destinationAccountId : undefined, cardId: kind === "card" ? cardId : undefined, categoryId: kind === "transfer" ? undefined : categoryId || undefined, status: isPending || isRecurring ? "pending" as const : kind === "income" ? "received" as const : "paid" as const };
+      if (isRecurring) addRecurringTransaction(next); else addTransaction(next);
       router.replace("/transactions");
     } catch (error) {
       setSaving(false);
@@ -50,6 +52,7 @@ export default function AddScreen() {
       {kind === "transfer" ? <><Picker label="Conta de origem" values={accounts.map((item) => ({ id: item.id, label: item.name }))} selected={accountId} onSelect={setAccountId} /><Picker label="Conta de destino" values={accounts.map((item) => ({ id: item.id, label: item.name }))} selected={destinationAccountId} onSelect={setDestinationAccountId} /></> : kind === "card" ? <Picker label="Cartão" values={cards.map((item) => ({ id: item.id, label: `${item.name}${item.lastDigits ? ` • ${item.lastDigits}` : ""}` }))} selected={cardId} onSelect={setCardId} /> : <Picker label="Conta" values={accounts.map((item) => ({ id: item.id, label: item.name }))} selected={accountId} onSelect={setAccountId} />}
       {kind !== "transfer" ? <Picker label="Categoria" values={eligibleCategories.map((item) => ({ id: item.id, label: item.name }))} selected={categoryId} onSelect={setCategoryId} /> : null}
       <Pressable onPress={() => setIsPending((value) => !value)} style={({ pressed }) => [styles.pending, { backgroundColor: isPending ? colors.accent : colors.elevated, opacity: pressed ? 0.7 : 1 }]}><View style={[styles.checkbox, { backgroundColor: isPending ? colors.primary : "transparent", borderColor: isPending ? colors.primary : colors.border }]}>{isPending ? <MaterialIcons name="check" size={14} color="#FFFFFF" /> : null}</View><View style={styles.pendingCopy}><Text style={[styles.pendingTitle, { color: colors.text }]}>Deixar como pendente</Text><Text style={[styles.pendingText, { color: colors.muted }]}>Entra na previsão, sem alterar o saldo realizado.</Text></View></Pressable>
+      {kind !== "transfer" ? <Pressable onPress={() => setIsRecurring((value) => !value)} style={({ pressed }) => [styles.pending, { backgroundColor: isRecurring ? colors.accent : colors.elevated, opacity: pressed ? 0.7 : 1, marginTop: 9 }]}><View style={[styles.checkbox, { backgroundColor: isRecurring ? colors.primary : "transparent", borderColor: isRecurring ? colors.primary : colors.border }]}>{isRecurring ? <MaterialIcons name="check" size={14} color="#FFFFFF" /> : null}</View><View style={styles.pendingCopy}><Text style={[styles.pendingTitle, { color: colors.text }]}>Repetir todo mês</Text><Text style={[styles.pendingText, { color: colors.muted }]}>Cria este lançamento no mesmo dia dos próximos meses.</Text></View><MaterialIcons name="repeat" size={19} color={isRecurring ? colors.primary : colors.muted} /></Pressable> : null}
     </View>
     <Pressable disabled={saving} onPress={save} style={({ pressed }) => [styles.save, { backgroundColor: colors.primary, opacity: pressed || saving ? 0.62 : 1 }]}><Text style={[styles.saveText, { color: colors.onPrimary }]}>{saving ? "Salvando..." : "Salvar lançamento"}</Text><MaterialIcons name="check" size={20} color={colors.onPrimary} /></Pressable>
   </ScrollView></KeyboardAvoidingView></ScreenContainer>;

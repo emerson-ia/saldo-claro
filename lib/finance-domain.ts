@@ -49,8 +49,24 @@ export type Transaction = {
   note?: string;
   installment?: { current: number; total: number };
   recurring?: boolean;
+  recurrenceId?: string;
   /** Chave estável de uma linha importada. Nunca é usada em lançamentos manuais. */
   importFingerprint?: string;
+  createdAt: string;
+};
+
+export type RecurringRule = {
+  id: string;
+  kind: Exclude<TransactionKind, "transfer">;
+  description: string;
+  amount: number;
+  startDate: string;
+  dayOfMonth: number;
+  accountId?: string;
+  cardId?: string;
+  categoryId?: string;
+  note?: string;
+  active: boolean;
   createdAt: string;
 };
 
@@ -64,6 +80,7 @@ export type FinanceData = {
   transactions: Transaction[];
   budgets: Budget[];
   goals: FinancialGoal[];
+  recurringRules: RecurringRule[];
   /** Valor que a pessoa decidiu não comprometer nas despesas do dia a dia. */
   safetyBuffer: number;
   demoMode: boolean;
@@ -132,6 +149,35 @@ export function calculateAccountBalance(account: Account, transactions: Transact
 
 export function getMonthTransactions(transactions: Transaction[], month: string) {
   return transactions.filter((transaction) => transaction.date.slice(0, 7) === month && transaction.status !== "cancelled");
+}
+
+const dateForMonth = (month: string, day: number) => {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const lastDay = new Date(year, monthNumber, 0).getDate();
+  return `${month}-${String(Math.min(Math.max(1, day), lastDay)).padStart(2, "0")}`;
+};
+
+/** Creates only the current and next two occurrences. The database's unique
+ * index on recurrence_id + transaction_date is the final cross-device lock. */
+export function generateRecurringTransactions(rules: RecurringRule[], existing: Transaction[], today = todayIso()) {
+  const firstMonth = today.slice(0, 7);
+  const targetMonths = [firstMonth, shiftMonth(firstMonth, 1), shiftMonth(firstMonth, 2)];
+  const existingKeys = new Set(existing.filter((item) => item.recurrenceId).map((item) => `${item.recurrenceId}:${item.date}`));
+  const createdAt = new Date().toISOString();
+  return rules.flatMap((rule) => {
+    if (!rule.active) return [];
+    return targetMonths.flatMap((month) => {
+      const date = dateForMonth(month, rule.dayOfMonth);
+      const key = `${rule.id}:${date}`;
+      if (date < rule.startDate || existingKeys.has(key)) return [];
+      return [{
+        id: makeId("rec"), kind: rule.kind, description: rule.description, amount: rule.amount, date,
+        dueDate: rule.kind === "expense" ? date : undefined, accountId: rule.accountId, cardId: rule.cardId,
+        categoryId: rule.categoryId, note: rule.note, status: "pending" as const, recurring: true,
+        recurrenceId: rule.id, createdAt,
+      }];
+    });
+  });
 }
 
 export function getMonthlySummary(data: FinanceData, month: string) {
@@ -320,6 +366,7 @@ export function createDemoData(): FinanceData {
       { id: "bud-transport", categoryId: "cat-transport", amount: 650, month },
     ],
     goals: [{ id: "goal-emergency", name: "Reserva de emergência", target: 25000, saved: 8700, targetDate: "2027-06-30", color: "#0B6B62" }],
+    recurringRules: [],
     safetyBuffer: 500,
     demoMode: true,
     hasSeenWelcome: false,
@@ -328,5 +375,5 @@ export function createDemoData(): FinanceData {
 
 export function createEmptyData(): FinanceData {
   const demo = createDemoData();
-  return { ...demo, accounts: [], cards: [], transactions: [], budgets: [], goals: [], safetyBuffer: 0, demoMode: false, hasSeenWelcome: true };
+  return { ...demo, accounts: [], cards: [], transactions: [], budgets: [], goals: [], recurringRules: [], safetyBuffer: 0, demoMode: false, hasSeenWelcome: true };
 }

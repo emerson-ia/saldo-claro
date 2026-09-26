@@ -5,6 +5,7 @@ import {
   currentMonth,
   getMonthlySummary,
   getEndOfMonthForecast,
+  generateRecurringTransactions,
   getSafeToSpendSummary,
   isInMonth,
   shiftMonth,
@@ -18,7 +19,7 @@ const accountB: Account = { id: "b", name: "Conta B", type: "Poupança", color: 
 const month = currentMonth();
 
 function makeData(transactions: Transaction[]): FinanceData {
-  return { accounts: [accountA, accountB], categories: [], cards: [], transactions, budgets: [], goals: [], safetyBuffer: 0, demoMode: false, hasSeenWelcome: true };
+  return { accounts: [accountA, accountB], categories: [], cards: [], transactions, budgets: [], goals: [], recurringRules: [], safetyBuffer: 0, demoMode: false, hasSeenWelcome: true };
 }
 
 describe("regras de cálculo financeiro", () => {
@@ -82,6 +83,15 @@ describe("regras de cálculo financeiro", () => {
     expect(forecast.expectedExpenses).toBe(120);
     expect(forecast.cardCommitments).toBe(180);
     expect(forecast.projectedBalance).toBe(1100);
+  });
+
+  it("gera ocorrências mensais sem duplicar a ocorrência já registrada", () => {
+    const rule = { id: "rule-1", kind: "expense" as const, description: "Academia", amount: 99.9, startDate: `${month}-05`, dayOfMonth: 5, accountId: "a", active: true, createdAt: `${month}-01` };
+    const existing: Transaction[] = [{ id: "existing", kind: "expense", description: "Academia", amount: 99.9, date: `${month}-05`, dueDate: `${month}-05`, accountId: "a", status: "pending", recurring: true, recurrenceId: "rule-1", createdAt: `${month}-01` }];
+    const generated = generateRecurringTransactions([rule], existing, `${month}-01`);
+    expect(generated).toHaveLength(2);
+    expect(generated.map((item) => item.date)).toEqual([`${shiftMonth(month, 1)}-05`, `${shiftMonth(month, 2)}-05`]);
+    expect(generated.every((item) => item.status === "pending" && item.recurrenceId === "rule-1")).toBe(true);
   });
 
   it("entrega dados demonstrativos separados com contas, cartões e planejamento", () => {

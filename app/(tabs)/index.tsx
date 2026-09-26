@@ -12,12 +12,12 @@ import { MonthNavigator } from "@/components/month-navigator";
 
 export default function HomeScreen() {
   const finance = useFinance();
-  const { ready, hasSeenWelcome, demoMode, transactions, cards, budgets, categories, accounts, goals, safetyBuffer, privacyMode, setPrivacyMode } = finance;
+  const { ready, hasSeenWelcome, demoMode, transactions, cards, budgets, categories, accounts, goals, recurringRules, safetyBuffer, privacyMode, setPrivacyMode } = finance;
   const { colors } = useFinanceTheme();
   const { user } = useAuth();
   const firstName = ((user?.user_metadata.full_name as string | undefined) ?? user?.email?.split("@")[0] ?? "").trim().split(/\s+/)[0];
   const [month, setMonth] = useState(currentMonth);
-  const financeData: FinanceData = { accounts, categories, cards, transactions, budgets, goals, safetyBuffer, demoMode, hasSeenWelcome };
+  const financeData: FinanceData = { accounts, categories, cards, transactions, budgets, goals, recurringRules, safetyBuffer, demoMode, hasSeenWelcome };
   const summary = getMonthlySummary(financeData, month);
   const safeToSpend = getSafeToSpendSummary(financeData);
   const endOfMonthForecast = getEndOfMonthForecast(financeData);

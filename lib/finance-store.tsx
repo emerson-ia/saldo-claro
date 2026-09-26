@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-provider";
 import {
   createDemoData,
   createEmptyData,
+  generateRecurringTransactions,
   makeId,
   type Account,
   type Budget,
@@ -11,6 +12,7 @@ import {
   type CreditCard,
   type FinanceData,
   type FinancialGoal,
+  type RecurringRule,
   type Transaction,
   type TransactionKind,
   type TransactionStatus,
@@ -26,6 +28,8 @@ type FinanceContextValue = FinanceData & {
   setPrivacyMode: (value: boolean) => void;
   completeWelcome: (mode: "demo" | "fresh") => void;
   addTransaction: (transaction: NewTransaction) => void;
+  addRecurringTransaction: (transaction: NewTransaction) => void;
+  setRecurringRuleActive: (id: string, active: boolean) => void;
   updateTransactionStatus: (id: string, status: TransactionStatus) => void;
   deleteTransaction: (id: string) => void;
   addAccount: (account: Omit<Account, "id">) => void;
@@ -79,7 +83,12 @@ export function FinanceProvider({ children }: PropsWithChildren) {
       if (repository) {
         const remote = await repository.hydrate(user.id);
         if (cancelled) return;
-        if (remote.ok) setData(remote.data);
+        if (remote.ok) {
+          const generated = generateRecurringTransactions(remote.data.recurringRules, remote.data.transactions);
+          const next = generated.length ? { ...remote.data, transactions: [...generated, ...remote.data.transactions] } : remote.data;
+          setData(next);
+          if (generated.length) sync(() => repository.addRecurringTransactions(user.id, generated));
+        }
         else reportSyncFailure(remote); // Missing schema/network leaves the cache as the active fallback.
       }
       if (!cancelled) setReady(true);
@@ -102,6 +111,23 @@ export function FinanceProvider({ children }: PropsWithChildren) {
     const item: Transaction = { ...transaction, id: makeId("tx"), createdAt: new Date().toISOString() };
     setData((previous) => ({ ...previous, transactions: [item, ...previous.transactions] }));
     if (repository && user) sync(() => repository.addTransaction(user.id, item));
+  }, [repository, sync, user]);
+  const addRecurringTransaction = useCallback((transaction: NewTransaction) => {
+    if (transaction.kind === "transfer") throw new Error("Transferências não podem ser recorrentes nesta etapa.");
+    if (transaction.amount <= 0 || Number.isNaN(transaction.amount)) throw new Error("Informe um valor maior que zero.");
+    const recurrenceId = makeId("rule");
+    const dayOfMonth = Number(transaction.date.slice(8, 10));
+    const rule: RecurringRule = { id: recurrenceId, kind: transaction.kind, description: transaction.description, amount: transaction.amount, startDate: transaction.date, dayOfMonth, accountId: transaction.accountId, cardId: transaction.cardId, categoryId: transaction.categoryId, note: transaction.note, active: true, createdAt: new Date().toISOString() };
+    const item: Transaction = { ...transaction, dueDate: transaction.kind === "expense" ? transaction.dueDate ?? transaction.date : transaction.dueDate, id: makeId("tx"), recurrenceId, recurring: true, createdAt: new Date().toISOString() };
+    setData((previous) => ({ ...previous, recurringRules: [rule, ...previous.recurringRules], transactions: [item, ...previous.transactions] }));
+    if (repository && user) {
+      sync(() => repository.addRecurringRule(user.id, rule));
+      sync(() => repository.addTransaction(user.id, item));
+    }
+  }, [repository, sync, user]);
+  const setRecurringRuleActive = useCallback((id: string, active: boolean) => {
+    setData((previous) => ({ ...previous, recurringRules: previous.recurringRules.map((rule) => rule.id === id ? { ...rule, active } : rule) }));
+    if (repository && user) sync(() => repository.setRecurringRuleActive(user.id, id, active));
   }, [repository, sync, user]);
   const updateTransactionStatus = useCallback((id: string, status: TransactionStatus) => {
     setData((previous) => ({ ...previous, transactions: previous.transactions.map((item) => item.id === id ? { ...item, status } : item) }));
@@ -166,7 +192,7 @@ export function FinanceProvider({ children }: PropsWithChildren) {
     });
   }, [repository, sync, user]);
 
-  const value = useMemo(() => ({ ...data, ready, privacyMode, setPrivacyMode, completeWelcome, addTransaction, updateTransactionStatus, deleteTransaction, addAccount, updateAccount, deleteAccount, addCard, updateCard, deleteCard, addCategory, updateCategory, setBudget, addGoal, setSafetyBuffer }), [data, ready, privacyMode, completeWelcome, addTransaction, updateTransactionStatus, deleteTransaction, addAccount, updateAccount, deleteAccount, addCard, updateCard, deleteCard, addCategory, updateCategory, setBudget, addGoal, setSafetyBuffer]);
+  const value = useMemo(() => ({ ...data, ready, privacyMode, setPrivacyMode, completeWelcome, addTransaction, addRecurringTransaction, setRecurringRuleActive, updateTransactionStatus, deleteTransaction, addAccount, updateAccount, deleteAccount, addCard, updateCard, deleteCard, addCategory, updateCategory, setBudget, addGoal, setSafetyBuffer }), [data, ready, privacyMode, completeWelcome, addTransaction, addRecurringTransaction, setRecurringRuleActive, updateTransactionStatus, deleteTransaction, addAccount, updateAccount, deleteAccount, addCard, updateCard, deleteCard, addCategory, updateCategory, setBudget, addGoal, setSafetyBuffer]);
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
 }
 export function useFinance() { const context = useContext(FinanceContext); if (!context) throw new Error("useFinance deve ser usado dentro de FinanceProvider."); return context; }
